@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blueberry Intelligence V5 - Menu Engineering</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; }
+        .nav-active { background-color: #2563eb; color: white; border-radius: 12px; }
+        .card { background: white; border-radius: 24px; border: 1px solid #e2e8f0; }
+        .tab-btn { transition: all 0.2s ease; padding: 12px 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+        .row-chariot { background-color: #fff7ed; border-left: 5px solid #f97316; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="importPanel" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-6">
+        <div class="bg-white p-10 rounded-[40px] shadow-2xl max-w-3xl w-full">
+            <div class="text-center mb-8">
+                <span class="text-5xl">📊</span>
+                <h2 class="text-3xl font-black text-slate-800 uppercase italic tracking-tighter mt-4">Blueberry Intelligence V5</h2>
+                <p class="text-slate-400 text-sm">Analyse de Performance & Menu Engineering</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div class="p-4 border rounded-3xl bg-slate-50"><label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Ventes 2025</label><input type="file" id="f25" class="text-xs w-full"></div>
+                <div class="p-4 border rounded-3xl bg-slate-50"><label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Ventes 2026</label><input type="file" id="f26" class="text-xs w-full"></div>
+                <div class="p-4 border rounded-3xl bg-blue-50"><label class="block text-[10px] font-black uppercase text-blue-500 mb-2">Base Familles</label><input type="file" id="fMap" multiple class="text-xs w-full"></div>
+                <div class="p-4 border rounded-3xl bg-emerald-50"><label class="block text-[10px] font-black uppercase text-emerald-600 mb-2">Fichier Substitution</label><input type="file" id="fReplace" class="text-xs w-full"></div>
+            </div>
+            <button onclick="startPerformanceAudit()" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl hover:bg-blue-700 transition shadow-xl uppercase text-sm">Lancer l'Analyse de Performance</button>
+        </div>
+    </div>
+
+    <div id="mainUI" class="hidden flex flex-col min-h-screen">
+        <header class="bg-white border-b sticky top-0 z-50">
+            <div class="max-w-8xl mx-auto px-6 h-20 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <span class="text-xl font-black uppercase">Blueberry <span class="text-blue-600">Performance</span></span>
+                    <select id="siteFilter" onchange="applyFilters()" class="ml-6 bg-slate-100 border-none rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-600 outline-none">
+                        <option value="GLOBAL">🌏 Vue Entreprise</option>
+                        <option value="RABAT">📍 Rabat</option>
+                        <option value="MOHAMMEDIA">📍 Mohammedia</option>
+                        <option value="MEGA MALL">📍 Mega Mall</option>
+                        <option value="ARRIBAT CENTER">📍 Arribat Center</option>
+                        <option value="CASA">📍 Casablanca</option>
+                    </select>
+                </div>
+                <nav class="flex gap-2">
+                    <button onclick="showPage('perf')" id="nav-perf" class="tab-btn nav-active">Performance</button>
+                    <button onclick="showPage('menu')" id="nav-menu" class="tab-btn">Menu Engineering</button>
+                    <button onclick="showPage('mix')" id="nav-mix" class="tab-btn">Product Mix</button>
+                    <button onclick="exportProcessedData()" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg">💾 Export Resultats</button>
+                </nav>
+            </div>
+        </header>
+
+        <main class="max-w-8xl mx-auto p-6 lg:p-10 w-full flex-1">
+            
+            <div id="page-perf" class="page-content space-y-8">
+                <div id="perf-kpis" class="grid grid-cols-1 md:grid-cols-4 gap-6 text-center"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="card p-8 h-[400px]"><canvas id="chartEvoGlobal"></canvas></div>
+                    <div class="card p-8 overflow-y-auto max-h-[400px]">
+                        <h3 class="font-black text-xs uppercase mb-4">Top Croissances par Famille</h3>
+                        <div id="famList" class="space-y-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-menu" class="page-content hidden space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-blue-600 text-white p-8 rounded-[40px]">
+                        <h3 class="text-xl font-bold mb-2">⭐ Les Stars</h3>
+                        <p class="text-blue-100 text-xs mb-4">Plats avec un gros volume et une forte croissance. Ce sont vos moteurs.</p>
+                        <div id="list-stars" class="space-y-2"></div>
+                    </div>
+                    <div class="bg-slate-800 text-white p-8 rounded-[40px]">
+                        <h3 class="text-xl font-bold mb-2">🐕 Les "Puzzles"</h3>
+                        <p class="text-slate-400 text-xs mb-4">Faible volume mais forte croissance. Potentiel à exploiter via le marketing.</p>
+                        <div id="list-puzzles" class="space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-mix" class="page-content hidden">
+                <div class="card p-8 h-[600px]"><canvas id="chartMix"></canvas></div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        let fullDB = [], subMap = {}, famMap = {};
+        let activeData = [];
+        let activeCharts = [];
+
+        // --- NORMALISATION ---
+        function getSiteKey(name) {
+            const n = (name || "").toUpperCase();
+            if (n.includes("MOHAMMEDIA")) return "MOHAMMEDIA";
+            if (n.includes("MEGA MALL") || n.includes("MM ")) return "MEGA MALL";
+            if (n.includes("ARRIBAT CENTER")) return "ARRIBAT CENTER";
+            if (n.includes("CASA")) return "CASA";
+            return "RABAT";
+        }
+
+        async function startPerformanceAudit() {
+            const f25 = document.getElementById('f25').files[0];
+            const f26 = document.getElementById('f26').files[0];
+            const fFams = document.getElementById('fMap').files;
+            const fSub = document.getElementById('fReplace').files[0];
+
+            if(!f25 || !f26 || fFams.length === 0 || !fSub) return alert("Charger tous les fichiers.");
+
+            // 1. Substitutions
+            const sRows = await readXls(fSub);
+            subMap = {};
+            sRows.forEach(r => { if(r['Code article']) subMap[r['Code article']] = r['Articles a remplacer'].trim().toUpperCase(); });
+
+            // 2. Familles
+            famMap = {};
+            for(let f of fFams) {
+                const rows = await readXls(f);
+                rows.forEach(r => { if(r['Code article']) famMap[r['Code article']] = r['Famille'] || 'AUTRES'; });
+            }
+
+            // 3. Fusion & Normalisation
+            const p25 = (await readXls(f25)).map(r => ({...r, _yr: 2025}));
+            const p26 = (await readXls(f26)).map(r => ({...r, _yr: 2026}));
+            
+            const combined = [...p25, ...p26].map(r => {
+                const name = subMap[r['Code article']] || (r['Nom Code article'] || "").toUpperCase();
+                const site = getSiteKey(r['Nom Site']);
+                const isChariot = (r['Nom Site'] || "").toUpperCase().includes("CHARIOT");
+                return {
+                    name, 
+                    site, 
+                    isChariot, 
+                    yr: r._yr,
+                    ca: parseFloat(r['CA HT']) || 0,
+                    qt: parseFloat(r['QT']) || 0,
+                    fam: isChariot ? "CHARIOT" : (famMap[r['Code article']] || "AUTRES")
+                };
+            });
+
+            fullDB = combined;
+            applyFilters();
+            document.getElementById('importPanel').classList.add('hidden');
+            document.getElementById('mainUI').classList.remove('hidden');
+        }
+
+        function applyFilters() {
+            const site = document.getElementById('siteFilter').value;
+            const data = site === "GLOBAL" ? fullDB : fullDB.filter(r => r.site === site);
+
+            // Consolidation par article
+            const agg = {};
+            data.forEach(r => {
+                if(!agg[r.name]) agg[r.name] = { name: r.name, ca25:0, qt25:0, ca26:0, qt26:0, fam: r.fam };
+                if(r.yr === 2025) { agg[r.name].ca25 += r.ca; agg[r.name].qt25 += r.qt; }
+                else { agg[r.name].ca26 += r.ca; agg[r.name].qt26 += r.qt; }
+            });
+
+            activeData = Object.values(agg).map(i => ({
+                ...i,
+                evo: i.ca25 > 0 ? ((i.ca26-i.ca25)/i.ca25*100) : 0,
+                absEvo: i.ca26 - i.ca25
+            }));
+
+            refreshCharts();
+        }
+
+        function refreshCharts() {
+            activeCharts.forEach(c => c.destroy());
+            activeCharts = [];
+
+            // 1. KPIs
+            const c25 = activeData.reduce((a,b)=>a+b.ca25, 0);
+            const c26 = activeData.reduce((a,b)=>a+b.ca26, 0);
+            const q26 = activeData.reduce((a,b)=>a+b.qt26, 0);
+            const gEvo = c25 > 0 ? ((c26-c25)/c25*100) : 0;
+
+            document.getElementById('perf-kpis').innerHTML = `
+                <div class="card p-6"><p class="text-[10px] font-black text-slate-400 uppercase">CA NET 2026</p><p class="text-2xl font-black">${fmt(c26)}</p></div>
+                <div class="card p-6"><p class="text-[10px] font-black text-slate-400 uppercase">Croissance</p><p class="text-2xl font-black ${gEvo>=0?'text-emerald-500':'text-red-500'}">${gEvo.toFixed(1)}%</p></div>
+                <div class="card p-6"><p class="text-[10px] font-black text-slate-400 uppercase">Volume Vendu</p><p class="text-2xl font-black text-blue-600">${fmt(q26)} pcs</p></div>
+                <div class="card p-6"><p class="text-[10px] font-black text-slate-400 uppercase">Articles en Croissance</p><p class="text-2xl font-black">${activeData.filter(i=>i.evo>0).length}</p></div>
+            `;
+
+            // 2. Familles List
+            const fams = {};
+            activeData.forEach(i => {
+                if(!fams[i.fam]) fams[i.fam] = { ca25:0, ca26:0 };
+                fams[i.fam].ca25 += i.ca25; fams[i.fam].ca26 += i.ca26;
+            });
+            document.getElementById('famList').innerHTML = Object.entries(fams).sort((a,b)=>b[1].ca26-a[1].ca26).map(([n, d]) => {
+                const e = d.ca25 > 0 ? ((d.ca26-d.ca25)/d.ca25*100) : 0;
+                return `<div class="flex justify-between items-center text-xs p-2 border-b">
+                    <span class="font-bold uppercase">${n}</span>
+                    <span class="font-black ${e>=0?'text-emerald-500':'text-red-500'}">${e.toFixed(1)}%</span>
+                </div>`;
+            }).join('');
+
+            // 3. Menu Engineering
+            const avgQt = q26 / activeData.length;
+            const items = (filter) => activeData.filter(filter).sort((a,b)=>b.ca26-a.ca26).slice(0, 10).map(i => `<div class="bg-white/10 p-2 rounded-lg text-[10px] font-bold flex justify-between"><span>${i.name}</span><span>${fmt(i.ca26)}</span></div>`).join('');
+            document.getElementById('list-stars').innerHTML = items(i => i.qt26 > avgQt && i.evo > 0);
+            document.getElementById('list-puzzles').innerHTML = items(i => i.qt26 <= avgQt && i.evo > 50);
+
+            // 4. Bar Chart Evolution
+            const ctx = document.getElementById('chartEvoGlobal').getContext('2d');
+            activeCharts.push(new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Janvier 2025', 'Janvier 2026'],
+                    datasets: [{ label: 'Performance Globale (DH)', data: [c25, c26], backgroundColor: ['#cbd5e1', '#2563eb'], borderRadius: 12 }]
+                },
+                options: { maintainAspectRatio: false }
+            }));
+        }
+
+        function exportProcessedData() {
+            const ws = XLSX.utils.json_to_sheet(activeData.map(i => ({
+                Article: i.name, Famille: i.fam, "CA 2025": i.ca25, "CA 2026": i.ca26, "Evolution %": i.evo.toFixed(2)
+            })));
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Audit Consolidé");
+            XLSX.writeFile(wb, "Blueberry_Audit_Consolide.xlsx");
+        }
+
+        // HELPERS
+        async function readXls(f) { const d = await f.arrayBuffer(); const wb = XLSX.read(new Uint8Array(d), {type:'array'}); return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); }
+        function fmt(n) { return Math.round(n).toLocaleString('fr-MA') + " DH"; }
+        function showPage(p) { document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden')); document.getElementById('page-'+p).classList.remove('hidden'); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('nav-active')); document.getElementById('nav-'+p).classList.add('nav-active'); }
+    </script>
+</body>
+</html>
